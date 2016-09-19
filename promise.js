@@ -25,7 +25,6 @@ class Promise {
             process.nextTick(() => {
                 this.errRes = this.catchCallback(err);
             });
-
         }
     }
 
@@ -43,10 +42,12 @@ class Promise {
         this.catchCallback = callback;
 
         if (this.errRes == null && this.errParam) {
-            this.errRes = this.catchCallback(this.errParam);
+            process.nextTick(() => {
+                this.errRes = this.catchCallback(this.errParam);
+            });
         }
 
-        return this;
+        return Promise.resolve(this.errRes);
     }
 }
 
@@ -91,7 +92,7 @@ Promise.race = (promises) => {
                 if (done) {
                     return;
                 }
-                
+
                 var promise = promises[i];
                 promise.then((res) => {
                     resolve(res);

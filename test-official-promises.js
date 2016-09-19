@@ -1,5 +1,3 @@
-var Promise = require('./promise.js');
-
 new Promise((resolve, reject) => {
     resolve('bud');
     // reject('butt');
