@@ -95,6 +95,11 @@ Promise.race = (promises) => {
 
                 var promise = promises[i];
                 promise.then((res) => {
+
+                    if (done) {
+                        return;
+                    }
+
                     resolve(res);
                     done = true;
                     return;
