@@ -1,42 +1,78 @@
 class Promise {
     constructor(f) {
         this.f = f;
+        process.nextTick(() => {
+            this.res = this.f(this.resolve.bind(this), this.reject.bind(this));
+        });
     }
 
     resolve(res) {
+
+        this.param = res;
+
         if (this.thenCallback) {
-            this.thenCallback(res);
+            process.nextTick(() => {
+                this.res = this.thenCallback(res);
+            });
         }
     }
 
     reject(err) {
+
+        this.errParam = err;
+
         if (this.catchCallback) {
-            this.catchCallback(err);
+            process.nextTick(() => {
+                this.errRes = this.catchCallback(err);
+            });
+
         }
     }
 
     then(callback) {
         this.thenCallback = callback;
-        process.nextTick(this.f.bind(this, this.resolve.bind(this), this.reject.bind(this)), 0);
+
+        if (this.res == null && this.param) {
+            this.res = this.thenCallback(this.param);
+        }
+
         return this;
     }
 
     catch(callback) {
         this.catchCallback = callback;
+
+        if (this.errRes == null && this.errParam) {
+            this.errRes = this.catchCallback(this.errParam);
+        }
+
         return this;
     }
 }
 
 Promise.all = (promises) => {
     return new Promise((resolve, reject) => {
-        var completed = [];
+        var resArr = [];
+        for (var i = 0; i < promises.length; i++) {
+            resArr.push(null);
+        }
+
         for (var i = 0; i < promises.length; i++) {
             process.nextTick(((i) => {
                 var promise = promises[i];
                 promise.then((res) => {
-                    completed.push(res);
-                    if (completed.length >= promises.length) {
-                        resolve(completed);
+                    resArr[i] = res;
+
+                    var completed = true;
+                    for (var j = 0; j < resArr.length; j++) {
+                        if (resArr[j] == null) {
+                            completed = false;
+                            break;
+                        }
+                    }
+
+                    if (completed) {
+                        resolve(resArr);
                     }
                 }).catch((err) => {
                     reject(err);
@@ -51,15 +87,20 @@ Promise.race = (promises) => {
         var done = false;
         for (var i = 0; i < promises.length; i++) {
             process.nextTick(((i) => {
+
+                if (done) {
+                    return;
+                }
+                
                 var promise = promises[i];
                 promise.then((res) => {
-                    if (done) {
-                        return;
-                    }
                     resolve(res);
                     done = true;
+                    return;
                 }).catch((err) => {
                     reject(err);
+                    done = true;
+                    return;
                 });
             }).bind(this, i, done));
         }
@@ -79,51 +120,3 @@ Promise.reject = (err) => {
 };
 
 module.exports = Promise;
-
-// -----------------------------------------------------
-var test = () => {
-    var p = new Promise((resolve, reject) => {
-        resolve('bud');
-        // reject('butt');
-    });
-
-    p.then((res) => {
-        console.log('res: ' + res);
-    }).catch((err) => {
-        console.log('err: ' + err);
-    });
-
-    Promise.all([
-        new Promise((resolve, reject) => {
-            resolve('duck');
-        }),
-        new Promise((resolve, reject) => {
-            resolve('pant');
-            // reject('bucket');
-        }),
-        // Promise.reject('no dogs!'),
-        Promise.resolve('dogs')
-
-    ]).then((res) => {
-        console.log('Promise.all res: ' + JSON.stringify(res));
-    }).catch((err) => {
-        console.log('Promise.all err: ' + JSON.stringify(err))
-    });
-
-    Promise.race([
-        new Promise((resolve, reject) => {
-            resolve('duck');
-        }),
-        new Promise((resolve, reject) => {
-            resolve('pant');
-            // reject('bucket');
-        }),
-        // Promise.reject('no dogs!'),
-        Promise.resolve('dogs')
-
-    ]).then((res) => {
-        console.log('Promise.race res: ' + JSON.stringify(res));
-    }).catch((err) => {
-        console.log('Promise.race err: ' + JSON.stringify(err))
-    });
-};
