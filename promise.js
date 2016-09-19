@@ -32,7 +32,9 @@ class Promise {
         this.thenCallback = callback;
 
         if (this.res == null && this.param) {
-            this.res = this.thenCallback(this.param);
+            process.nextTick(() => {
+                this.res = this.thenCallback(this.param);
+            });
         }
 
         return this;
@@ -104,6 +106,11 @@ Promise.race = (promises) => {
                     done = true;
                     return;
                 }).catch((err) => {
+
+                    if (done) {
+                        return;
+                    }
+
                     reject(err);
                     done = true;
                     return;
